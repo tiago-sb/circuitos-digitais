@@ -1,0 +1,9 @@
+db/
+incremental_db/
+output_files/
+simulation/
+formato_de_onda.vwf
+maquina_de_salgado.qsf
+maquina_de_salgado.qws
+maquina_de_salgado.vhd.bak
+maquina_de_salgado_nativelink_simulation.rpt
