@@ -21,7 +21,7 @@ salgados e o projeto deveria ser produzido na linguagem VHDL.
 ### Moedas aceitas 💰
 R$ 0.25, R$ 0.50 e R$ 1.00
 
-## Regras da máquina 📝
+### Regras da máquina 📝
 Se não houver estoque do salgado escolhido então a máquina emite um aviso, caso houve estoque do salgado escolhido, então a máquina permite que o cliente comece a colocar as moedas e
 caso o cliente colocar alguma moeda não permitida então a máquina não realiza a soma e deixa a moeda passar direto para a saída. Até que a soma seja completada
 o cliente pode desistir a qualquer momento da compra. Se isso ocorrer, todas as moedas que ele depositou devem ser devolvidas, e o somatório do valor depositado deve ser exibido nos displays
