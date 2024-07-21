@@ -19,7 +19,8 @@ ENTITY maquina_de_salgado IS
 		ligar_maquina                : IN STD_LOGIC; -- pino que eh uma abstracao do processo de iniciar a maquina
 		estados_atual_maquina        : OUT STD_LOGIC_VECTOR(2 downto 0); -- estado atual da maquina
 		continuar                    : IN STD_LOGIC; -- continuar o percurso da maquina
-
+		cancelar_compra              : IN STD_LOGIC; -- cancelar compra do cliente
+		
 		-- pinos para a selecao do salgado
 		salgado_escolhido            : IN STD_LOGIC_VECTOR(2 DOWNTO 0); -- vetor com o tipo do salgado escolhido
 		liberar_salgado              : IN STD_LOGIC; -- pino para liberar o salgado para o cliente 
@@ -27,7 +28,7 @@ ENTITY maquina_de_salgado IS
 		salgado_invalido_led         : OUT STD_LOGIC; -- led que simboliza que o salgado escolhido foi invalido
 		salgado_terminado_led        : OUT STD_LOGIC; -- led que simboliza que o salgado escolhido esta sem estoque	
 		salgado_liberado_cliente_led : OUT STD_LOGIC; -- led que simboliza que o salgado foi liberado para o cliente
-		valor_salgado                : BUFFER INTEGER RANGE 0 TO 999 := 0; -- contem o valor do salgado escolhido
+		valor_salgado                : BUFFER INTEGER RANGE 0 TO 999 := 000; -- contem o valor do salgado escolhido
 		
 		-- pinos para o pagamento
 		confirmar_moeda              : IN STD_LOGIC; -- pino necessario para efetuar a confirmacao de moeda 
@@ -35,7 +36,8 @@ ENTITY maquina_de_salgado IS
 		moeda_invalida_led           : OUT STD_LOGIC; -- pino de aviso para moedas invalidas
 		moeda_liberada_cliente_led   : OUT STD_LOGIC; -- pino de avso para liberacao de moedas para o cliente
 		quantia_inserida             : BUFFER INTEGER RANGE 0 TO 999; -- quantia inserida pelo cliente para a compra do salgado
-		troco_cliente                : BUFFER INTEGER RANGE 0 TO 999 := 0; -- troco para o cliente
+		troco_cliente                : BUFFER INTEGER RANGE 0 TO 999 := 000; -- troco para o cliente
+		devolver_cliente             : BUFFER INTEGER RANGE 0 TO 999 := 000; -- dinheiro a ser devolvido para o cliente
 		
 		-- pinos para os leds dos estados
 		estado_inicial_led           : OUT STD_LOGIC; -- led do estado inicial
@@ -64,11 +66,11 @@ ARCHITECTURE maquina OF maquina_de_salgado IS
 	SIGNAL proximo_estado: estado_maquina; -- sinal que recebe o proximo estado da maquina
 	
 	-- sinais relativos aos estoques dos salgados 
-   SIGNAL estoque_batata_frita_grande  : INTEGER RANGE 0 TO 10 := 5; -- estoque de batata frita grande = 5 unidades 
-   SIGNAL estoque_batata_frita_media   : INTEGER RANGE 0 TO 10 := 5; -- estoque de batata frita media = 5 unidades 
-   SIGNAL estoque_batata_frita_pequena : INTEGER RANGE 0 TO 10 := 5; -- estoque de batata frita pequena = 5 unidades 
-   SIGNAL estoque_tortilha_grande      : INTEGER RANGE 0 TO 10 := 5; -- estoque de tortilha grande = 5 unidades 
-   SIGNAL estoque_tortilha_pequena     : INTEGER RANGE 0 TO 10 := 5; -- estoque de tortilha pequena = 5 unidades 
+   SIGNAL estoque_batata_frita_grande  : INTEGER RANGE 0 TO 10 := 05; -- estoque de batata frita grande = 5 unidades 
+   SIGNAL estoque_batata_frita_media   : INTEGER RANGE 0 TO 10 := 05; -- estoque de batata frita media = 5 unidades 
+   SIGNAL estoque_batata_frita_pequena : INTEGER RANGE 0 TO 10 := 05; -- estoque de batata frita pequena = 5 unidades 
+   SIGNAL estoque_tortilha_grande      : INTEGER RANGE 0 TO 10 := 05; -- estoque de tortilha grande = 5 unidades 
+   SIGNAL estoque_tortilha_pequena     : INTEGER RANGE 0 TO 10 := 05; -- estoque de tortilha pequena = 5 unidades 
 	 
 	------------------------------------------------------------------------------------------------
 	-- Nome: mostrarDisplay7
@@ -106,7 +108,7 @@ BEGIN
 	------------------------------------------------------------------------------------------------
 	PROCESS (clk)
 	BEGIN
-		IF (rising_edge(clk)) THEN
+		IF (clk'event AND clk = '1') THEN
 			estado_atual <= proximo_estado;
 		END IF;
 	END PROCESS;
@@ -117,7 +119,10 @@ BEGIN
 	-- Funcao: processo que sera o responsavel por controlar atualizacao das informacoes exibidas nos displays de 7 segmentos
 	------------------------------------------------------------------------------------------------
 	PROCESS (clk)
-	VARIABLE numero_salgado: integer range 0 to 999;
+	VARIABLE numero_salgado : integer range 0 to 999;
+	VARIABLE numero_centena : integer range 0 to 999;
+	VARIABLE numero_dezena  : integer range 0 to 999;
+	VARIABLE numero_unidade : integer range 0 to 999;
 	BEGIN
 		IF (clk'event AND clk = '1') THEN
 			CASE (estado_atual) IS
@@ -172,25 +177,45 @@ BEGIN
 							valor_salgado            <= 0;
 					END CASE;
 				WHEN estado_estoque =>
+					numero_unidade := (quantia_inserida mod 10);
+					numero_dezena  := (quantia_inserida - numero_unidade) / 10;
+					numero_dezena  := (numero_dezena mod 10);
+					numero_centena := (quantia_inserida - numero_unidade) / 10;
+					numero_centena := (numero_centena - numero_dezena) / 10;
 					display7_salgado         <= mostrarDisplay7(numero_salgado);
-					display7_quantia_centena <= mostrarDisplay7((quantia_inserida / 100) mod 10);
-					display7_quantia_dezena  <= mostrarDisplay7((quantia_inserida mod 100) / 10);
-					display7_quantia_unidade <= mostrarDisplay7(quantia_inserida mod 10);
+					display7_quantia_centena <= mostrarDisplay7(numero_centena);
+					display7_quantia_dezena  <= mostrarDisplay7(numero_dezena);
+					display7_quantia_unidade <= mostrarDisplay7(numero_unidade);
 				WHEN estado_pagamento =>
+					numero_unidade := (quantia_inserida mod 10);
+					numero_dezena  := (quantia_inserida - numero_unidade) / 10;
+					numero_dezena  := (numero_dezena mod 10);
+					numero_centena := (quantia_inserida - numero_unidade) / 10;
+					numero_centena := (numero_centena - numero_dezena) / 10;
 					display7_salgado         <= mostrarDisplay7(numero_salgado);
-					display7_quantia_centena <= mostrarDisplay7((quantia_inserida / 100) mod 10);
-					display7_quantia_dezena  <= mostrarDisplay7((quantia_inserida mod 100) / 10);
-					display7_quantia_unidade <= mostrarDisplay7(quantia_inserida mod 10);
+					display7_quantia_centena <= mostrarDisplay7(numero_centena);
+					display7_quantia_dezena  <= mostrarDisplay7(numero_dezena);
+					display7_quantia_unidade <= mostrarDisplay7(numero_unidade);
 				WHEN estado_liberar_salgado =>
+					numero_unidade := (troco_cliente mod 10);
+					numero_dezena  := (troco_cliente - numero_unidade) / 10;
+					numero_dezena  := (numero_dezena mod 10);
+					numero_centena := (troco_cliente - numero_unidade) / 10;
+					numero_centena := (numero_centena - numero_dezena) / 10;
 					display7_salgado         <= mostrarDisplay7(numero_salgado);
-					display7_quantia_centena <= mostrarDisplay7((troco_cliente / 100) mod 10);
-					display7_quantia_dezena  <= mostrarDisplay7((troco_cliente mod 100) / 10);
-					display7_quantia_unidade <= mostrarDisplay7(troco_cliente mod 10);
+					display7_quantia_centena <= mostrarDisplay7(numero_centena);
+					display7_quantia_dezena  <= mostrarDisplay7(numero_dezena);
+					display7_quantia_unidade <= mostrarDisplay7(numero_unidade);
 				WHEN estado_troco =>
+					numero_unidade := (devolver_cliente mod 10);
+					numero_dezena  := (devolver_cliente - numero_unidade) / 10;
+					numero_dezena  := (numero_dezena mod 10);
+					numero_centena := (devolver_cliente - numero_unidade) / 10;
+					numero_centena := (numero_centena - numero_dezena) / 10;
 					display7_salgado         <= mostrarDisplay7(numero_salgado);
-					display7_quantia_centena <= mostrarDisplay7((troco_cliente / 100) mod 10);
-					display7_quantia_dezena  <= mostrarDisplay7((troco_cliente mod 100) / 10);
-					display7_quantia_unidade <= mostrarDisplay7(troco_cliente mod 10);
+					display7_quantia_centena <= mostrarDisplay7(numero_centena);
+					display7_quantia_dezena  <= mostrarDisplay7(numero_dezena);
+					display7_quantia_unidade <= mostrarDisplay7(numero_unidade);
 			END CASE;
 		END IF;
 	END PROCESS;
@@ -210,10 +235,10 @@ BEGIN
 				CASE (moedas) IS
 					WHEN "011" =>
 						moeda_invalida_led <= '0'; -- pino sem alertar nada
-						quantia_inserida <= quantia_inserida + 25; -- mais R$ 0,25
+						quantia_inserida <= quantia_inserida + 025; -- mais R$ 0,25
 					WHEN "101" =>
 						moeda_invalida_led <= '0'; -- pino sem alertar nada
-						quantia_inserida <= quantia_inserida + 50; -- mais R$ 0,50
+						quantia_inserida <= quantia_inserida + 050; -- mais R$ 0,50
 					WHEN "001" =>
 						moeda_invalida_led <= '0'; -- pino sem alertar nada
 						quantia_inserida <= quantia_inserida + 100; -- mais R$ 1,00
@@ -229,7 +254,10 @@ BEGIN
 	-- PROCESSO SENSIVEL AO CLOCK E AO RESET
 	-- Funcao: processo que sera o responsavel por controlar toda a logica de funcionamento dos estados da maquina
 	------------------------------------------------------------------------------------------------
-	PROCESS(clk, rst)
+	PROCESS(clk, rst, ligar_maquina, confirmar_moeda, cancelar_compra,
+	confirmar_salgado, estoque_batata_frita_grande, 
+	estoque_batata_frita_media, estoque_batata_frita_pequena, 
+	estoque_tortilha_grande, estoque_tortilha_pequena)
 	BEGIN
 		IF (rst = '1') THEN 
 			estados_atual_maquina      <= "000";
@@ -243,11 +271,12 @@ BEGIN
 			salgado_invalido_led       <= '0';
 			moeda_liberada_cliente_led <= '0';
 			troco_cliente              <= 0;
-			estoque_batata_frita_grande  <= 5; -- estoque de batata frita grande = 5 unidades 
-   		estoque_batata_frita_media   <= 5; -- estoque de batata frita media = 5 unidades 
-   		estoque_batata_frita_pequena <= 5; -- estoque de batata frita pequena = 5 unidades 
-   		estoque_tortilha_grande      <= 5; -- estoque de tortilha grande = 5 unidades 
-			estoque_tortilha_pequena     <= 5; -- estoque de tortilha pequena = 5 unidades
+			devolver_cliente           <= 0;
+			estoque_batata_frita_grande  <= 05; -- estoque de batata frita grande = 5 unidades 
+   		estoque_batata_frita_media   <= 05; -- estoque de batata frita media = 5 unidades 
+   		estoque_batata_frita_pequena <= 05; -- estoque de batata frita pequena = 5 unidades 
+   		estoque_tortilha_grande      <= 05; -- estoque de tortilha grande = 5 unidades 
+			estoque_tortilha_pequena     <= 05; -- estoque de tortilha pequena = 5 unidades
 			proximo_estado <= estado_inicial;
 		ELSE
 			CASE (estado_atual) IS
@@ -277,10 +306,12 @@ BEGIN
 					estado_troco_led           <= '0';
 
 					IF (confirmar_salgado = '0') THEN
-						IF (salgado_escolhido = "001" OR salgado_escolhido = "010" OR salgado_escolhido = "011" OR salgado_escolhido = "100" OR salgado_escolhido = "101") THEN
-							proximo_estado <= estado_estoque;
+						IF (salgado_escolhido = "001" OR salgado_escolhido = "010" OR
+						salgado_escolhido = "011" OR salgado_escolhido = "100" OR 
+						salgado_escolhido = "101") THEN
 							salgado_terminado_led <= '0';
 							salgado_invalido_led  <= '0';
+							proximo_estado <= estado_estoque;
 						ELSE
 							salgado_invalido_led <= '1'; -- salgado escolhido invalido
 							proximo_estado <= estado_escolha_salgado;
@@ -354,11 +385,19 @@ BEGIN
 					estado_liberar_salgado_led <= '0';
 					estado_troco_led           <= '0';
 					salgado_terminado_led      <= '0';
-
-					IF (quantia_inserida >= valor_salgado) THEN
-						proximo_estado <= estado_liberar_salgado;
-					ELSIF (rst = '0') THEN
-						proximo_estado <= estado_troco;
+					IF (cancelar_compra = '0') THEN
+						devolver_cliente <= quantia_inserida;
+						IF (devolver_cliente > 0) THEN
+							proximo_estado <= estado_troco;
+						ELSE 
+							proximo_estado <= estado_inicial;
+						END IF;
+					ELSE 
+						IF (quantia_inserida >= valor_salgado) THEN
+							proximo_estado <= estado_liberar_salgado;
+						ELSE 
+							proximo_estado <= estado_pagamento;
+						END IF;
 					END IF;	
 				WHEN estado_liberar_salgado =>
 					estados_atual_maquina      <= "101";
@@ -384,10 +423,11 @@ BEGIN
 							WHEN OTHERS =>
 						END CASE;
 						troco_cliente <= quantia_inserida - valor_salgado; -- calculo do troco a ser devolvido
-						IF (troco_cliente = 0) THEN
-							proximo_estado <= estado_inicial; -- caso nao tenha troco volta para o estado inicial
-						ELSE
+						devolver_cliente <= troco_cliente;
+						IF (troco_cliente > 0) THEN
 							proximo_estado <= estado_troco; -- caso tenha troco vai para o estado de devolver o troco
+						ELSE
+							proximo_estado <= estado_inicial; -- caso nao tenha troco volta para o estado inicial
 						END IF;
 					ELSE 
 						proximo_estado <= estado_liberar_salgado;
